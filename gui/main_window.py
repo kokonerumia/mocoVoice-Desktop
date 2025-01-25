@@ -26,7 +26,7 @@ class TranscriptionGUI(QMainWindow):
 
     def initUI(self):
         """UIの初期化"""
-        self.setWindowTitle("MocoVoice 文字起こし")
+        self.setWindowTitle("mocoVoice Desktop")
         self.setMinimumWidth(1200)
         self.setMinimumHeight(800)
         
