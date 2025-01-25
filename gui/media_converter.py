@@ -21,14 +21,14 @@ class MediaConverter:
         """
         # 入力ファイルの拡張子を確認
         _, ext = os.path.splitext(input_path)
-        if ext.lower() in ['.wav', '.mp3', '.m4a', '.aac']:
-            # すでに音声ファイルの場合は変換不要
+        if ext.lower() in ['.mp3', '.m4a', '.aac']:
+            # すでに効率的な音声形式の場合は変換不要
             return input_path
             
         # 出力ファイルのパスを生成（元の動画と同じディレクトリ）
         dirname = os.path.dirname(input_path)
         basename = os.path.splitext(os.path.basename(input_path))[0]
-        output_path = os.path.join(dirname, f"{basename}_audio.wav")
+        output_path = os.path.join(dirname, f"{basename}_audio.mp3")
         
         try:
             # ffmpegを使用して音声を抽出
@@ -36,9 +36,10 @@ class MediaConverter:
                 'ffmpeg',
                 '-i', input_path,  # 入力ファイル
                 '-vn',  # 映像を無効化
-                '-acodec', 'pcm_s16le',  # 音声コーデック
+                '-acodec', 'libmp3lame',  # MP3コーデック
                 '-ar', '44100',  # サンプリングレート
-                '-ac', '2',  # チャンネル数
+                '-ac', '1',  # モノラル
+                '-b:a', '128k',  # ビットレート
                 '-y',  # 既存ファイルを上書き
                 output_path
             ], check=True, capture_output=True)
