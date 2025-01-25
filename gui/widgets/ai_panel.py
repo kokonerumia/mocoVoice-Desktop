@@ -96,6 +96,5 @@ class AIPanel(QFrame):
     def process_text(self):
         """テキスト処理を実行"""
         prompt_text = self.prompt_edit.toPlainText()
-        if not prompt_text:
-            return
-        self.process_clicked.emit(prompt_text)
+        if prompt_text:
+            self.process_clicked.emit(prompt_text)
