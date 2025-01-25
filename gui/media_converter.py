@@ -25,10 +25,10 @@ class MediaConverter:
             # すでに音声ファイルの場合は変換不要
             return input_path
             
-        # 一時ファイルのパスを生成
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        temp_dir = tempfile.gettempdir()
-        output_path = os.path.join(temp_dir, f"audio_{timestamp}.wav")
+        # 出力ファイルのパスを生成（元の動画と同じディレクトリ）
+        dirname = os.path.dirname(input_path)
+        basename = os.path.splitext(os.path.basename(input_path))[0]
+        output_path = os.path.join(dirname, f"{basename}_audio.wav")
         
         try:
             # ffmpegを使用して音声を抽出

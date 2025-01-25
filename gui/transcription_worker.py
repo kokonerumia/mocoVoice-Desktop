@@ -43,7 +43,6 @@ class TranscriptionWorker(QThread):
     def process_chunk(self, chunk_path: str, chunk_duration: float, total_progress: int, chunk_weight: int) -> Optional[str]:
         """1つのチャンクを処理"""
         try:
-            # 1. 文字起こしジョブを作成
             self.debug.emit(f"\nチャンク処理開始: {os.path.basename(chunk_path)}")
             self.debug.emit(f"- 長さ: {chunk_duration:.1f}分")
             
@@ -57,7 +56,6 @@ class TranscriptionWorker(QThread):
             transcription_id = job_data['transcription_id']
             upload_url = job_data['audio_upload_url']
 
-            # 2. 音声ファイルをアップロード
             self.status.emit("ファイルをアップロード中...")
             self.debug.emit("音声ファイルをアップロード中...")
             
@@ -67,7 +65,6 @@ class TranscriptionWorker(QThread):
             if self._is_cancelled:
                 return None
 
-            # 3. 書き起こし開始
             self.debug.emit("書き起こしを開始...")
             try:
                 self.client.start_transcription(transcription_id)
@@ -82,7 +79,6 @@ class TranscriptionWorker(QThread):
             if self._is_cancelled:
                 return None
 
-            # 4. 結果待機
             self.debug.emit("結果待機中...")
             retry_count = 0
             max_retries = 3
@@ -93,7 +89,7 @@ class TranscriptionWorker(QThread):
 
                 try:
                     result = self.client.get_transcription_status(transcription_id)
-                    retry_count = 0  # 成功したらリトライカウントをリセット
+                    retry_count = 0
                 except MocoVoiceError as e:
                     retry_count += 1
                     if retry_count > max_retries:
@@ -117,9 +113,7 @@ class TranscriptionWorker(QThread):
                 self.status.emit(f"状態: {current_status}")
                 self.debug.emit(f"現在の状態: {current_status}")
 
-                # プログレスバーの更新
                 if status == 'IN_PROGRESS':
-                    # IN_PROGRESS状態の間、徐々にプログレスバーを進める
                     progress = min(total_progress + int(chunk_weight * 0.8), total_progress + chunk_weight)
                     self.progress.emit(progress)
 
@@ -131,7 +125,6 @@ class TranscriptionWorker(QThread):
 
                 time.sleep(5)
 
-            # 5. 結果を取得
             self.debug.emit("結果を取得中...")
             transcription_text = self.client.get_transcription_result(result['transcription_path'])
             return transcription_text
@@ -143,7 +136,6 @@ class TranscriptionWorker(QThread):
     def run(self):
         """文字起こし処理を実行"""
         try:
-            # ファイル情報を表示
             file_size = os.path.getsize(self.file_path)
             self.debug.emit(f"ファイル情報:")
             self.debug.emit(f"- パス: {self.file_path}")
@@ -151,30 +143,25 @@ class TranscriptionWorker(QThread):
             self.debug.emit(f"- 形式: {os.path.splitext(self.file_path)[1]}")
             self.debug.emit(f"- MIMEタイプ: {self.client.get_mime_type(self.file_path)}")
             
-            # ファイルの長さを確認
             self.debug.emit("\n音声ファイルを解析中...")
             self.progress.emit(5)
             duration = AudioSplitter.get_audio_duration(self.file_path)
             self.debug.emit(f"音声の長さ: {duration:.1f}分")
 
-            # 必要に応じてファイルを分割
             self.debug.emit("\nファイル分割の準備...")
             self.progress.emit(10)
             chunks = AudioSplitter.split_audio(self.file_path)
             total_chunks = len(chunks)
             self.debug.emit(f"分割数: {total_chunks}")
 
-            # 分割ファイルのパスを保存（後で削除するため）
             if total_chunks > 1:
                 self.chunk_files = [chunk[0] for chunk in chunks]
-                # 元ファイルが分割ファイルリストに含まれている場合のみ削除
                 if self.file_path in self.chunk_files:
                     self.chunk_files.remove(self.file_path)
 
-            # 各チャンクを処理
             results = []
-            total_progress = 10  # ファイル分析で10%使用
-            chunk_weight = 90 // total_chunks  # 残り90%を各チャンクに分配
+            total_progress = 10
+            chunk_weight = 90 // total_chunks
 
             for i, (chunk_path, chunk_duration) in enumerate(chunks, 1):
                 if self._is_cancelled:
@@ -189,7 +176,6 @@ class TranscriptionWorker(QThread):
             if self._is_cancelled:
                 raise Exception("処理が中止されました")
 
-            # 結果を統合
             if results:
                 self.debug.emit("\n結果を統合中...")
                 if self.options.get('timestamp'):
@@ -200,12 +186,10 @@ class TranscriptionWorker(QThread):
                         include_speaker=self.options.get('speaker_diarization', False)
                     )
 
-                # 結果を保存
                 self.debug.emit("\n結果を保存...")
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 output_path = os.path.join(
                     os.path.dirname(self.file_path),
-                    f'{os.path.splitext(os.path.basename(self.file_path))[0]}_{timestamp}.txt'
+                    f'{os.path.splitext(os.path.basename(self.file_path))[0]}_transcript.txt'
                 )
 
                 with open(output_path, 'w', encoding='utf-8') as f:
