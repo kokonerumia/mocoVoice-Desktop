@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabe
 from PyQt6.QtGui import QPixmap, QCursor
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from moco_client import MIME_TYPES
+from ..media_converter import MediaConverter
 
 class AudioRecorder(QThread):
     """音声録音スレッドクラス"""
@@ -124,17 +125,31 @@ class FilePanel(QFrame):
         layout.addWidget(file_frame)
 
     def browse_input_file(self):
-        """音声ファイルを選択"""
-        extensions = " ".join(f"*{ext}" for ext in MIME_TYPES.keys())
+        """音声/動画ファイルを選択"""
+        # 音声ファイルの拡張子
+        audio_extensions = list(MIME_TYPES.keys())
+        # 動画ファイルの拡張子
+        video_extensions = ['.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv']
+        
+        # 全ての対応拡張子を結合
+        all_extensions = audio_extensions + video_extensions
+        extensions_filter = " ".join(f"*{ext}" for ext in all_extensions)
+        
         file_name, _ = QFileDialog.getOpenFileName(
             self,
             "音声/動画ファイルを選択",
             "",
-            f"メディアファイル ({extensions});;すべてのファイル (*.*)"
+            f"メディアファイル ({extensions_filter});;すべてのファイル (*.*)"
         )
+        
         if file_name:
-            self.input_path_label.setText(file_name)
-            self.file_selected.emit(file_name)
+            try:
+                # 動画ファイルの場合は音声を抽出
+                audio_path = MediaConverter.convert_to_audio(file_name)
+                self.input_path_label.setText(audio_path)
+                self.file_selected.emit(audio_path)
+            except Exception as e:
+                self.text_loaded.emit(f"メディア変換エラー: {str(e)}")
 
     def load_text_file(self):
         """テキストファイルを読み込む"""

@@ -6,3 +6,4 @@ openai>=1.0.0
 markdown>=3.5.0
 PyAudio>=0.2.13
 portaudio>=19.7.0  # macOSの場合: brew install portaudio
+ffmpeg-python>=0.2.0  # ffmpegも必要: macOSの場合 brew install ffmpeg

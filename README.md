@@ -9,6 +9,8 @@
   - タイムスタンプ
   - 句読点の自動挿入
   - その場で音声録音可能
+  - 動画ファイル(.mp4, .mov, .avi等)から自動で音声抽出
+  - ネットワーク負荷軽減のためローカルで音声変換処理
 - テキストファイルの読み込み
 - AI処理機能
   - カスタマイズ可能なプロンプト
@@ -24,8 +26,23 @@ git clone https://github.com/kokonerumia/mocoVoice-Desktop.git
 cd mocoVoice-Desktop
 ```
 
-2. 必要なパッケージをインストール
+2. 必要なパッケージとツールをインストール
+
+macOSの場合:
 ```bash
+brew install ffmpeg portaudio  # 必要なツールをインストール
+pip install -r requirements.txt  # Pythonパッケージをインストール
+```
+
+Linuxの場合:
+```bash
+sudo apt-get install ffmpeg portaudio19-dev  # Ubuntuの場合
+pip install -r requirements.txt
+```
+
+Windowsの場合:
+```bash
+# ffmpegをダウンロードしてPATHに追加してから:
 pip install -r requirements.txt
 ```
 
@@ -46,9 +63,10 @@ cp config.json.example config.json
 python main.py
 ```
 
-2. 音声ファイルの文字起こし
-   - 「音声ファイルを選択」ボタンをクリックして音声/動画ファイルを選択、または
-   - 「録音」ボタンをクリックしてその場で音声を録音（録音中は赤色表示）
+2. 音声/動画ファイルの文字起こし
+   - 「音声ファイルを選択」ボタンをクリックして音声ファイル(.wav, .mp3等)や動画ファイル(.mp4, .mov等)を選択
+     - 動画ファイルの場合は自動的に音声が抽出されます
+   - または「録音」ボタンをクリックしてその場で音声を録音（録音中は赤色表示）
    - 必要に応じてオプション（話者分離、タイムスタンプ、句読点）を設定
    - 「文字起こし開始」ボタンをクリック
    - 処理状況はログタブで確認可能
