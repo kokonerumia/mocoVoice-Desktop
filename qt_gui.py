@@ -4,6 +4,7 @@ import time
 import json
 import traceback
 from datetime import datetime
+from gpt_processor import GPTProcessor
 from typing import List, Optional, Dict
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -304,6 +305,33 @@ class TranscriptionGUI(QMainWindow):
         control_layout.addWidget(self.status_label)
         
         left_layout.addWidget(control_frame)
+
+        # GPT処理部分
+        gpt_frame = QFrame()
+        gpt_layout = QVBoxLayout(gpt_frame)
+        
+        gpt_label = QLabel("ChatGPT処理")
+        gpt_label.setFont(QFont("Helvetica", 12, QFont.Weight.Bold))
+        gpt_layout.addWidget(gpt_label)
+        
+        self.prompt_edit = QTextEdit()
+        self.prompt_edit.setPlaceholderText("プロンプトを入力してください")
+        self.prompt_edit.setMaximumHeight(100)
+        gpt_layout.addWidget(self.prompt_edit)
+        
+        prompt_button_layout = QHBoxLayout()
+        
+        save_prompt_button = QPushButton("プロンプトを保存")
+        save_prompt_button.clicked.connect(self.save_prompt)
+        prompt_button_layout.addWidget(save_prompt_button)
+        
+        process_button = QPushButton("GPT処理実行")
+        process_button.clicked.connect(self.process_with_gpt)
+        prompt_button_layout.addWidget(process_button)
+        
+        gpt_layout.addLayout(prompt_button_layout)
+        
+        left_layout.addWidget(gpt_frame)
         left_layout.addStretch()
         
         # 右パネル (タブ付きパネル)
@@ -336,6 +364,7 @@ class TranscriptionGUI(QMainWindow):
         self.setStyle()
         
         # APIキーの読み込みとクライアントの初期化
+        self.gpt_processor = None
         try:
             with open('config.json', 'r', encoding='utf-8') as f:
                 config = json.load(f)
@@ -346,6 +375,15 @@ class TranscriptionGUI(QMainWindow):
         except Exception as e:
             self.status_label.setText(f'設定エラー: {str(e)}')
             self.run_button.setEnabled(False)
+            return
+
+        # GPTProcessorの初期化
+        try:
+            self.gpt_processor = GPTProcessor()
+            # 保存されているプロンプトを読み込む
+            self.prompt_edit.setText(self.gpt_processor.prompt)
+        except Exception as e:
+            self.status_label.setText(f'GPT設定エラー: {str(e)}')
         
     def setStyle(self):
         # ダークモードパレット
@@ -431,6 +469,42 @@ class TranscriptionGUI(QMainWindow):
         self.log_debug(f"エラー: {error_message}")
         self.run_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
+
+    def save_prompt(self):
+        """プロンプトを保存"""
+        if self.gpt_processor:
+            prompt_text = self.prompt_edit.toPlainText()
+            try:
+                self.gpt_processor.save_prompt(prompt_text)
+                self.status_label.setText("プロンプトを保存しました")
+            except Exception as e:
+                self.status_label.setText(f"プロンプト保存エラー: {str(e)}")
+
+    def process_with_gpt(self):
+        """GPTで処理を実行"""
+        if not self.gpt_processor:
+            self.status_label.setText("GPTProcessorが初期化されていません")
+            return
+
+        result_text = self.result_text.toPlainText()
+        if not result_text:
+            self.status_label.setText("処理するテキストがありません")
+            return
+
+        try:
+            # GPT処理を実行
+            processed_text = self.gpt_processor.process_text(result_text)
+            
+            # 結果を保存
+            input_path = self.input_path_label.text()
+            output_path = self.gpt_processor.save_result(input_path, processed_text)
+            
+            # 結果を表示
+            self.result_text.setText(processed_text)
+            self.status_label.setText(f"GPT処理完了: {output_path}")
+            
+        except Exception as e:
+            self.status_label.setText(f"GPT処理エラー: {str(e)}")
 
 def main():
     app = QApplication(sys.argv)
