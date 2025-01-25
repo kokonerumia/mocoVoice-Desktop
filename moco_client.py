@@ -124,8 +124,20 @@ class MocoVoiceClient:
     def start_transcription(self, transcription_id: str) -> Dict:
         """文字起こしを開始"""
         url = f'{self.base_url}/transcriptions/{transcription_id}/transcribe'
-        response = self._make_request('POST', url, headers=self.headers)
-        return response.json()
+        try:
+            response = requests.post(url, headers=self.headers, timeout=30)
+            
+            # レスポンスの詳細をログ出力
+            print(f"Start transcription response: Status={response.status_code}")
+            if response.status_code != 200:
+                print(f"Response content: {response.text}")
+            
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Start transcription error: {str(e)}")
+            raise MocoVoiceError(f"書き起こし開始エラー: {str(e)}")
 
     def get_transcription_status(self, transcription_id: str) -> Dict:
         """文字起こしの状態を取得"""
