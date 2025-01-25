@@ -18,8 +18,8 @@
 
 1. リポジトリをクローン
 ```bash
-git clone https://github.com/kokonerumia/mocoDesktop.git
-cd mocoDesktop
+git clone https://github.com/kokonerumia/mocoVoice-Desktop.git
+cd mocoVoice-Desktop
 ```
 
 2. 必要なパッケージをインストール
@@ -63,7 +63,7 @@ python qt_gui.py
 ## プロジェクト構成
 
 ```
-mocoDesktop/
+mocoVoice-Desktop/
 ├── gui/                      # GUIモジュール
 │   ├── widgets/             # ウィジェットコンポーネント
 │   │   ├── file_panel.py    # ファイル選択パネル
@@ -91,7 +91,7 @@ mocoDesktop/
 
 ## サポート
 
-不具合や機能要望は[Issues](https://github.com/kokonerumia/mocoDesktop/issues)にて受け付けています。
+不具合や機能要望は[Issues](https://github.com/kokonerumia/mocoVoice-Desktop/issues)にて受け付けています。
 
 ## ドキュメント
 
