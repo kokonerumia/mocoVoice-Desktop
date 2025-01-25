@@ -118,6 +118,7 @@ class TranscriptionGUI(QMainWindow):
             return
 
         # GPTProcessorの初期化
+        self.gpt_processor = None
         try:
             self.gpt_processor = GPTProcessor()
             # 保存されているプロンプトを読み込む
