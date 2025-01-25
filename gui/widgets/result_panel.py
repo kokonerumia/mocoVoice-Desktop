@@ -1,9 +1,10 @@
 """
 結果表示パネルモジュール
 """
+import markdown
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QTabWidget, 
-    QTextEdit, QPushButton, QFileDialog
+    QTextEdit, QTextBrowser, QPushButton, QFileDialog
 )
 from PyQt6.QtGui import QFont
 
@@ -44,8 +45,8 @@ class ResultPanel(QFrame):
         self.tab_widget.addTab(self.result_text, "文字起こし結果")
         
         # AI処理結果タブ
-        self.ai_result_text = QTextEdit()
-        self.ai_result_text.setReadOnly(True)
+        self.ai_result_text = QTextBrowser()
+        self.ai_result_text.setOpenExternalLinks(True)  # 外部リンクを開けるように
         self.ai_result_text.setFont(QFont("Helvetica", 11))
         self.tab_widget.addTab(self.ai_result_text, "AI処理結果")
         
@@ -64,7 +65,9 @@ class ResultPanel(QFrame):
 
     def set_ai_result(self, text: str):
         """AI処理結果を設定"""
-        self.ai_result_text.setText(text)
+        # マークダウンをHTMLに変換
+        html = markdown.markdown(text, extensions=['tables', 'fenced_code'])
+        self.ai_result_text.setHtml(html)
 
     def get_result(self) -> str:
         """文字起こし結果を取得"""

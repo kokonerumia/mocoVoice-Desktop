@@ -2,3 +2,5 @@ PyQt6>=6.8.0
 pydub>=0.25.1
 mutagen>=1.47.0
 requests>=2.31.0
+openai>=1.0.0
+markdown>=3.5.0
