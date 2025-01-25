@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QFrame, QStyleFactory, QCheckBox, QTabWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont, QPalette, QColor
+from PyQt6.QtGui import QFont, QPalette, QColor, QPixmap
 from moco_client import MocoVoiceClient, MocoVoiceError, MIME_TYPES
 from audio_splitter import AudioSplitter
 from result_merger import TranscriptionMerger
@@ -249,6 +249,19 @@ class TranscriptionGUI(QMainWindow):
         left_panel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         left_layout = QVBoxLayout(left_panel)
         left_layout.setSpacing(20)
+        
+        # ロゴ部分
+        logo_frame = QFrame()
+        logo_layout = QHBoxLayout(logo_frame)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
+        
+        logo_label = QLabel()
+        pixmap = QPixmap('mocovoice-logo.png')
+        scaled_pixmap = pixmap.scaled(200, 50, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        logo_label.setPixmap(scaled_pixmap)
+        logo_layout.addWidget(logo_label)
+        logo_layout.addStretch()
+        left_layout.addWidget(logo_frame)
         
         # ファイル選択部分
         file_frame = QFrame()
