@@ -170,7 +170,9 @@ class TranscriptionWorker(QThread):
             # 分割ファイルのパスを保存（後で削除するため）
             if total_chunks > 1:
                 self.chunk_files = [chunk[0] for chunk in chunks]
-                self.chunk_files.remove(self.file_path)  # 元ファイルは削除対象から除外
+                # 元ファイルが分割ファイルリストに含まれている場合のみ削除
+                if self.file_path in self.chunk_files:
+                    self.chunk_files.remove(self.file_path)
 
             # 各チャンクを処理
             results = []
