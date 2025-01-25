@@ -1,19 +1,69 @@
 """
 ファイル選択パネルモジュール
 """
+import os
+import wave
+import tempfile
 import webbrowser
+import pyaudio
+from datetime import datetime
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 from PyQt6.QtGui import QPixmap, QCursor
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from moco_client import MIME_TYPES
 
+class AudioRecorder(QThread):
+    """音声録音スレッドクラス"""
+    def __init__(self, filename):
+        super().__init__()
+        self.filename = filename
+        self.is_recording = True
+        
+        self.audio = pyaudio.PyAudio()
+        self.stream = None
+        self.frames = []
+        
+    def run(self):
+        """録音を実行"""
+        self.stream = self.audio.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=44100,
+            input=True,
+            frames_per_buffer=1024
+        )
+        
+        while self.is_recording:
+            data = self.stream.read(1024)
+            self.frames.append(data)
+            
+        self.stream.stop_stream()
+        self.stream.close()
+        
+        with wave.open(self.filename, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt16))
+            wf.setframerate(44100)
+            wf.writeframes(b''.join(self.frames))
+            
+        self.audio.terminate()
+        
+    def stop(self):
+        """録音を停止"""
+        self.is_recording = False
+
 class FilePanel(QFrame):
+    recording_started = pyqtSignal()  # 録音開始時のシグナル
+    recording_stopped = pyqtSignal()  # 録音停止時のシグナル
     """ファイル選択パネルクラス"""
     file_selected = pyqtSignal(str)  # ファイル選択時のシグナル
     text_loaded = pyqtSignal(str)    # テキスト読み込み時のシグナル
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.recorder = None
+        self.is_recording = False
+        self.temp_dir = tempfile.gettempdir()
         self.initUI()
 
     def initUI(self):
@@ -49,6 +99,22 @@ class FilePanel(QFrame):
         browse_button = QPushButton("音声ファイルを選択")
         browse_button.clicked.connect(self.browse_input_file)
         button_layout.addWidget(browse_button)
+        
+        self.record_button = QPushButton("録音")
+        self.record_button.clicked.connect(self.toggle_recording)
+        self.record_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        button_layout.addWidget(self.record_button)
         
         load_text_button = QPushButton("テキストを読み込む")
         load_text_button.clicked.connect(self.load_text_file)
@@ -86,6 +152,59 @@ class FilePanel(QFrame):
                 self.text_loaded.emit(text)
             except Exception as e:
                 self.text_loaded.emit(f"テキストファイル読み込みエラー: {str(e)}")
+
+    def toggle_recording(self):
+        """録音の開始/停止を切り替え"""
+        if not self.is_recording:
+            # 録音開始
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.join(self.temp_dir, f"recording_{timestamp}.wav")
+            
+            self.recorder = AudioRecorder(filename)
+            self.recorder.finished.connect(self.on_recording_finished)
+            self.recorder.start()
+            
+            self.is_recording = True
+            self.record_button.setText("録音停止")
+            self.record_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    padding: 5px;
+                    border-radius: 3px;
+                }
+                QPushButton:hover {
+                    background-color: #da190b;
+                }
+            """)
+            self.recording_started.emit()
+        else:
+            # 録音停止
+            if self.recorder:
+                self.recorder.stop()
+                self.is_recording = False
+                self.record_button.setText("録音")
+                self.record_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        padding: 5px;
+                        border-radius: 3px;
+                    }
+                    QPushButton:hover {
+                        background-color: #45a049;
+                    }
+                """)
+                self.recording_stopped.emit()
+
+    def on_recording_finished(self):
+        """録音完了時の処理"""
+        if self.recorder:
+            self.input_path_label.setText(self.recorder.filename)
+            self.file_selected.emit(self.recorder.filename)
+            self.recorder = None
 
     def get_input_path(self) -> str:
         """入力パスを取得"""

@@ -3,7 +3,7 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QFrame, QVBoxLayout
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QFrame, QVBoxLayout, QPushButton
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtCore import Qt
 from moco_client import MocoVoiceClient
@@ -22,6 +22,7 @@ class TranscriptionGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.worker = None
+        self.is_dark_mode = True
         self.initUI()
 
     def initUI(self):
@@ -57,9 +58,31 @@ class TranscriptionGUI(QMainWindow):
         self.result_panel = ResultPanel()
         self.result_panel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         
+        # テーマ切り替えボタン
+        theme_button = QPushButton()
+        theme_button.setFixedSize(30, 30)
+        theme_button.setStyleSheet("""
+            QPushButton {
+                border: none;
+                border-radius: 15px;
+                background-color: #2a82da;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #3292ea;
+            }
+        """)
+        theme_button.setText("🌓")
+        theme_button.clicked.connect(self.toggle_theme)
+        
         # レイアウトの追加
         main_layout.addWidget(left_panel, 1)
         main_layout.addWidget(self.result_panel, 2)
+        
+        # テーマボタンを右上に配置
+        theme_button.setParent(main_widget)
+        theme_button.move(main_widget.width() - 40, 10)
+        main_widget.resizeEvent = lambda e: theme_button.move(main_widget.width() - 40, 10)
         
         # スタイル設定
         self.setStyle()
@@ -72,23 +95,45 @@ class TranscriptionGUI(QMainWindow):
 
     def setStyle(self):
         """スタイルの設定"""
-        # ダークモードパレット
         palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
-        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
-        palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
-        
-        self.setPalette(palette)
+        if self.is_dark_mode:
+            # ダークモードパレット
+            palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+            palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
+            palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+            palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+            palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+            palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+            palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+            palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+            self.setPalette(palette)
+        else:
+            # ライトモードパレット
+            palette.setColor(QPalette.ColorRole.Window, QColor(240, 240, 240))
+            palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))
+            palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
+            palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.Button, QColor(240, 240, 240))
+            palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+            palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+            palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+            palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
+            
+            self.setPalette(palette)
+
+    def toggle_theme(self):
+        """テーマの切り替え"""
+        self.is_dark_mode = not self.is_dark_mode
+        self.setStyle()
 
     def connectSignals(self):
         """シグナルの接続"""
