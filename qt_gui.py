@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QFileDialog, QProgressBar,
     QTextEdit, QFrame, QStyleFactory, QCheckBox, QTabWidget
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont, QPalette, QColor
 from moco_client import MocoVoiceClient, MocoVoiceError, MIME_TYPES
 from audio_splitter import AudioSplitter
@@ -314,22 +314,34 @@ class TranscriptionGUI(QMainWindow):
         gpt_label.setFont(QFont("Helvetica", 12, QFont.Weight.Bold))
         gpt_layout.addWidget(gpt_label)
         
+        # プロンプト編集エリア
+        prompt_frame = QFrame()
+        prompt_frame.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
+        prompt_layout = QVBoxLayout(prompt_frame)
+        
+        prompt_header = QHBoxLayout()
+        prompt_label = QLabel("プロンプト")
+        prompt_label.setFont(QFont("Helvetica", 10))
+        prompt_header.addWidget(prompt_label)
+        
+        save_prompt_button = QPushButton("保存")
+        save_prompt_button.setMaximumWidth(60)
+        save_prompt_button.clicked.connect(self.save_prompt)
+        prompt_header.addWidget(save_prompt_button)
+        prompt_layout.addLayout(prompt_header)
+        
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setPlaceholderText("プロンプトを入力してください")
-        self.prompt_edit.setMaximumHeight(100)
-        gpt_layout.addWidget(self.prompt_edit)
+        self.prompt_edit.setMinimumHeight(200)  # 高さをさらに増やす
+        prompt_layout.addWidget(self.prompt_edit)
         
-        prompt_button_layout = QHBoxLayout()
+        gpt_layout.addWidget(prompt_frame)
         
-        save_prompt_button = QPushButton("プロンプトを保存")
-        save_prompt_button.clicked.connect(self.save_prompt)
-        prompt_button_layout.addWidget(save_prompt_button)
-        
+        # GPT処理ボタン
         process_button = QPushButton("GPT処理実行")
+        process_button.setFont(QFont("Helvetica", 11))
         process_button.clicked.connect(self.process_with_gpt)
-        prompt_button_layout.addWidget(process_button)
-        
-        gpt_layout.addLayout(prompt_button_layout)
+        gpt_layout.addWidget(process_button)
         
         left_layout.addWidget(gpt_frame)
         left_layout.addStretch()
@@ -466,7 +478,22 @@ class TranscriptionGUI(QMainWindow):
         self.cancel_button.setEnabled(False)
         
     def on_transcription_error(self, error_message):
-        self.log_debug(f"エラー: {error_message}")
+        error_guidance = """
+エラーが発生しました:
+{error_message}
+
+考えられる原因:
+1. サーバーが一時的に混雑している
+2. サーバーがメンテナンス中
+3. ネットワーク接続に問題がある
+
+対処方法:
+1. しばらく時間をおいて再試行してください
+2. ネットワーク接続を確認してください
+3. 問題が続く場合は、サポートにお問い合わせください
+"""
+        self.log_debug(error_guidance.format(error_message=error_message))
+        self.status_label.setText("エラーが発生しました。詳細はログを確認してください。")
         self.run_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
 
@@ -477,6 +504,17 @@ class TranscriptionGUI(QMainWindow):
             try:
                 self.gpt_processor.save_prompt(prompt_text)
                 self.status_label.setText("プロンプトを保存しました")
+                # 保存成功を視覚的にフィードバック
+                save_button = self.sender()
+                original_text = save_button.text()
+                save_button.setText("✓")
+                save_button.setEnabled(False)
+                
+                # 1秒後に元に戻す
+                QTimer.singleShot(1000, lambda: (
+                    save_button.setText(original_text),
+                    save_button.setEnabled(True)
+                ))
             except Exception as e:
                 self.status_label.setText(f"プロンプト保存エラー: {str(e)}")
 
