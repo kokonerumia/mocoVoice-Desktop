@@ -10,7 +10,7 @@ class GPTProcessor:
             with open('config.json', 'r', encoding='utf-8') as f:
                 config = json.load(f)
                 self.client = OpenAI(api_key=config.get('openaiApiKey'))
-                if not self.client.api_key:
+                if not self.client.api_key or self.client.api_key == 'YOUR_OPENAI_API_KEY':
                     raise ValueError('OpenAI APIキーが設定されていません')
         except Exception as e:
             raise Exception(f'設定エラー: {str(e)}')

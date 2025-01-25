@@ -108,8 +108,8 @@ class TranscriptionGUI(QMainWindow):
         try:
             with open('config.json', 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                api_key = config.get('apiKey')
-                if not api_key or api_key == 'YOUR_API_KEY_HERE':
+                api_key = config.get('mocoVoiceApiKey')
+                if not api_key or api_key == 'YOUR_MOCO_VOICE_API_KEY':
                     raise ValueError('APIキーが設定されていません')
                 self.client = MocoVoiceClient(api_key)
         except Exception as e:

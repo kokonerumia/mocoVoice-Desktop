@@ -31,7 +31,7 @@ pip install -r requirements.txt
 `config.json`ファイルを作成し、以下の内容を追加:
 ```json
 {
-  "apiKey": "YOUR_MOCOVOICE_API_KEY",
+  "mocoVoiceApiKey": "YOUR_MOCO_VOICE_API_KEY",
   "openaiApiKey": "YOUR_OPENAI_API_KEY"
 }
 ```
