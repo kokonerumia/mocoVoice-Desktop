@@ -16,8 +16,8 @@ class MocoVoiceError(Exception):
     pass
 
 class MocoVoiceClient:
-    MAX_RETRIES = 3
-    RETRY_DELAY = 2  # 秒
+    MAX_RETRIES = 5
+    RETRY_DELAY = 5  # 秒
 
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -37,32 +37,61 @@ class MocoVoiceClient:
         last_error = None
         for attempt in range(self.MAX_RETRIES):
             try:
-                response = requests.request(method, url, **kwargs)
-                if response.status_code == 500:
-                    raise MocoVoiceError("サーバーエラーが発生しました")
+                response = requests.request(method, url, timeout=30, **kwargs)
+                
+                # サーバーエラーの場合はリトライ
+                if response.status_code >= 500:
+                    error_msg = f"サーバーエラー (ステータスコード: {response.status_code})"
+                    if attempt < self.MAX_RETRIES - 1:
+                        print(f"リトライ {attempt + 1}/{self.MAX_RETRIES}: {error_msg}")
+                        time.sleep(self.RETRY_DELAY * (attempt + 1))
+                        continue
+                    raise MocoVoiceError(error_msg)
+                
                 response.raise_for_status()
                 return response
-            except (requests.exceptions.RequestException, MocoVoiceError) as e:
+                
+            except requests.exceptions.Timeout:
+                error_msg = "リクエストがタイムアウトしました"
+                if attempt < self.MAX_RETRIES - 1:
+                    print(f"リトライ {attempt + 1}/{self.MAX_RETRIES}: {error_msg}")
+                    time.sleep(self.RETRY_DELAY * (attempt + 1))
+                    continue
+                raise MocoVoiceError(error_msg)
+                
+            except requests.exceptions.ConnectionError as e:
+                error_msg = f"接続エラー: {str(e)}"
+                if attempt < self.MAX_RETRIES - 1:
+                    print(f"リトライ {attempt + 1}/{self.MAX_RETRIES}: {error_msg}")
+                    time.sleep(self.RETRY_DELAY * (attempt + 1))
+                    continue
+                raise MocoVoiceError(error_msg)
+                
+            except requests.exceptions.RequestException as e:
                 last_error = e
                 if attempt < self.MAX_RETRIES - 1:
+                    print(f"リトライ {attempt + 1}/{self.MAX_RETRIES}: {str(e)}")
                     time.sleep(self.RETRY_DELAY * (attempt + 1))
-                continue
+                    continue
+                break
         
+        # 最終的なエラーハンドリング
         if isinstance(last_error, requests.exceptions.HTTPError):
-            if last_error.response.status_code == 400:
-                raise MocoVoiceError("リクエストが不正です")
-            elif last_error.response.status_code == 401:
-                raise MocoVoiceError("APIキーが無効です")
-            elif last_error.response.status_code == 403:
-                raise MocoVoiceError("アクセス権限がありません")
-            elif last_error.response.status_code == 404:
-                raise MocoVoiceError("リソースが見つかりません")
-            elif last_error.response.status_code == 500:
-                raise MocoVoiceError("サーバーエラーが発生しました")
-            else:
-                raise MocoVoiceError(f"APIエラー: {last_error}")
+            status_code = last_error.response.status_code
+            error_messages = {
+                400: "リクエストが不正です",
+                401: "APIキーが無効です",
+                403: "アクセス権限がありません",
+                404: "リソースが見つかりません",
+                500: "サーバーエラーが発生しました",
+                502: "サーバーが一時的に利用できません",
+                503: "サービスが一時的に利用できません",
+                504: "ゲートウェイタイムアウト"
+            }
+            error_msg = error_messages.get(status_code, f"APIエラー (ステータスコード: {status_code})")
+            raise MocoVoiceError(error_msg)
         else:
-            raise MocoVoiceError(f"ネットワークエラー: {last_error}")
+            raise MocoVoiceError(f"ネットワークエラー: {str(last_error)}")
 
     def create_transcription_job(self, filename: str, options: Optional[Dict] = None) -> Dict:
         """文字起こしジョブを作成"""
