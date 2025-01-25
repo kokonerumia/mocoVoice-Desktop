@@ -189,12 +189,14 @@ class TranscriptionGUI(QMainWindow):
         self.result_panel.switch_to_tab(1)  # 結果タブに切り替え
         self.control_panel.set_status("テキストファイルを読み込みました")
 
-    def process_with_ai(self, prompt: str, text: str):
+    def process_with_ai(self, prompt: str):
         """AI処理を実行"""
         if not self.gpt_processor:
             self.control_panel.set_status("AI処理機能が初期化されていません")
             return
 
+        # 文字起こし結果のテキストを取得
+        text = self.result_panel.get_result()
         if not text:
             self.control_panel.set_status("文字起こし結果のテキストがありません")
             return
@@ -208,14 +210,10 @@ class TranscriptionGUI(QMainWindow):
             self.gpt_processor.save_prompt(prompt)
             processed_text = self.gpt_processor.process_text(text)
             
-            # 結果を保存
-            input_path = self.file_panel.get_input_path()
-            output_path = self.gpt_processor.save_result(input_path, processed_text)
-            
             # 結果を表示
             self.result_panel.set_ai_result(processed_text)
             self.result_panel.switch_to_tab(2)  # AI処理結果タブに切り替え
-            self.control_panel.set_status(f"AI処理完了: {output_path}")
+            self.control_panel.set_status("AI処理完了")
             
         except Exception as e:
             self.control_panel.set_status(f"AI処理エラー: {str(e)}")
