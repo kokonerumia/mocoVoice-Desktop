@@ -328,15 +328,26 @@ class TranscriptionGUI(QMainWindow):
         prompt_frame.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
         prompt_layout = QVBoxLayout(prompt_frame)
         
+        # プロンプトのヘッダー部分
         prompt_header = QHBoxLayout()
         prompt_label = QLabel("プロンプト")
         prompt_label.setFont(QFont("Helvetica", 10))
         prompt_header.addWidget(prompt_label)
         
+        # プロンプトの操作ボタン
+        prompt_buttons = QHBoxLayout()
+        
+        load_prompt_button = QPushButton("読み込み")
+        load_prompt_button.setMaximumWidth(80)
+        load_prompt_button.clicked.connect(self.load_prompt)
+        prompt_buttons.addWidget(load_prompt_button)
+        
         save_prompt_button = QPushButton("保存")
         save_prompt_button.setMaximumWidth(60)
         save_prompt_button.clicked.connect(self.save_prompt)
-        prompt_header.addWidget(save_prompt_button)
+        prompt_buttons.addWidget(save_prompt_button)
+        
+        prompt_header.addLayout(prompt_buttons)
         prompt_layout.addLayout(prompt_header)
         
         self.prompt_edit = QTextEdit()
@@ -346,11 +357,20 @@ class TranscriptionGUI(QMainWindow):
         
         gpt_layout.addWidget(prompt_frame)
         
-        # GPT処理ボタン
+        # GPT処理ボタンと保存ボタン
+        gpt_buttons = QHBoxLayout()
+        
         process_button = QPushButton("GPT処理実行")
         process_button.setFont(QFont("Helvetica", 11))
         process_button.clicked.connect(self.process_with_gpt)
-        gpt_layout.addWidget(process_button)
+        gpt_buttons.addWidget(process_button)
+        
+        save_result_button = QPushButton("結果を保存")
+        save_result_button.setFont(QFont("Helvetica", 11))
+        save_result_button.clicked.connect(self.save_gpt_result)
+        gpt_buttons.addWidget(save_result_button)
+        
+        gpt_layout.addLayout(gpt_buttons)
         
         left_layout.addWidget(gpt_frame)
         left_layout.addStretch()
@@ -535,6 +555,23 @@ class TranscriptionGUI(QMainWindow):
         self.run_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
 
+    def load_prompt(self):
+        """プロンプトファイルを読み込む"""
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "プロンプトファイルを選択",
+            "",
+            "テキストファイル (*.txt);;すべてのファイル (*.*)"
+        )
+        if file_name:
+            try:
+                with open(file_name, 'r', encoding='utf-8') as f:
+                    prompt_text = f.read()
+                self.prompt_edit.setText(prompt_text)
+                self.status_label.setText("プロンプトを読み込みました")
+            except Exception as e:
+                self.status_label.setText(f"プロンプト読み込みエラー: {str(e)}")
+
     def save_prompt(self):
         """プロンプトを保存"""
         if self.gpt_processor:
@@ -556,20 +593,48 @@ class TranscriptionGUI(QMainWindow):
             except Exception as e:
                 self.status_label.setText(f"プロンプト保存エラー: {str(e)}")
 
+    def save_gpt_result(self):
+        """GPT処理結果を保存"""
+        if not self.gpt_result_text.toPlainText():
+            self.status_label.setText("保存する処理結果がありません")
+            return
+            
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "GPT処理結果を保存",
+            "",
+            "テキストファイル (*.txt);;すべてのファイル (*.*)"
+        )
+        if file_name:
+            try:
+                with open(file_name, 'w', encoding='utf-8') as f:
+                    f.write(self.gpt_result_text.toPlainText())
+                self.status_label.setText(f"GPT処理結果を保存しました: {file_name}")
+            except Exception as e:
+                self.status_label.setText(f"保存エラー: {str(e)}")
+
     def process_with_gpt(self):
         """GPTで処理を実行"""
         if not self.gpt_processor:
             self.status_label.setText("GPTProcessorが初期化されていません")
             return
 
-        result_text = self.result_text.toPlainText()
-        if not result_text:
-            self.status_label.setText("処理するテキストがありません")
+        # 文字起こし結果のテキストを取得
+        transcription_text = self.result_text.toPlainText()
+        if not transcription_text:
+            self.status_label.setText("文字起こし結果のテキストがありません")
+            return
+
+        # プロンプトを取得
+        prompt_text = self.prompt_edit.toPlainText()
+        if not prompt_text:
+            self.status_label.setText("プロンプトを入力してください")
             return
 
         try:
-            # GPT処理を実行
-            processed_text = self.gpt_processor.process_text(result_text)
+            # プロンプトを保存してからGPT処理を実行
+            self.gpt_processor.save_prompt(prompt_text)
+            processed_text = self.gpt_processor.process_text(transcription_text)
             
             # 結果を保存
             input_path = self.input_path_label.text()
