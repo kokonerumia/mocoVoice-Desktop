@@ -41,7 +41,7 @@ cp config.json.example config.json
 
 1. アプリケーションの起動
 ```bash
-python qt_gui.py
+python main.py
 ```
 
 2. 音声ファイルの文字起こし
@@ -78,7 +78,7 @@ mocoVoice-Desktop/
 ├── gpt_processor.py         # AI処理モジュール
 ├── moco_client.py           # MocoVoice APIクライアント
 ├── result_merger.py         # 結果統合モジュール
-├── qt_gui.py               # メインエントリーポイント
+├── main.py                # メインエントリーポイント
 ├── config.json             # 設定ファイル
 └── requirements.txt        # 依存パッケージ
 ```
