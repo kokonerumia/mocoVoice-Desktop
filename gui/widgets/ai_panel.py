@@ -10,7 +10,7 @@ from PyQt6.QtCore import pyqtSignal, QTimer
 
 class AIPanel(QFrame):
     """AI処理パネルクラス"""
-    process_clicked = pyqtSignal(str, str)  # 処理実行時のシグナル (プロンプト, 入力テキスト)
+    process_clicked = pyqtSignal(str)  # 処理実行時のシグナル (プロンプト)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -58,27 +58,11 @@ class AIPanel(QFrame):
         
         layout.addWidget(prompt_frame)
         
-        # AI処理ボタンと保存ボタン
-        ai_buttons = QHBoxLayout()
-        
+        # AI処理ボタン
         process_button = QPushButton("AI処理実行")
         process_button.setFont(QFont("Helvetica", 11))
         process_button.clicked.connect(self.process_text)
-        ai_buttons.addWidget(process_button)
-        
-        save_result_button = QPushButton("結果を保存")
-        save_result_button.setFont(QFont("Helvetica", 11))
-        save_result_button.clicked.connect(self.save_result)
-        ai_buttons.addWidget(save_result_button)
-        
-        layout.addLayout(ai_buttons)
-
-        # 結果表示エリア
-        self.result_text = QTextEdit()
-        self.result_text.setReadOnly(True)
-        self.result_text.setFont(QFont("Helvetica", 11))
-        self.result_text.setPlaceholderText("AI処理結果がここに表示されます")
-        layout.addWidget(self.result_text)
+        layout.addWidget(process_button)
 
     def load_prompt(self):
         """プロンプトファイルを読み込む"""
@@ -114,30 +98,4 @@ class AIPanel(QFrame):
         prompt_text = self.prompt_edit.toPlainText()
         if not prompt_text:
             return
-        self.process_clicked.emit(prompt_text, self.result_text.toPlainText())
-
-    def save_result(self):
-        """処理結果を保存"""
-        if not self.result_text.toPlainText():
-            return
-            
-        file_name, _ = QFileDialog.getSaveFileName(
-            self,
-            "AI処理結果を保存",
-            "",
-            "テキストファイル (*.txt);;すべてのファイル (*.*)"
-        )
-        if file_name:
-            try:
-                with open(file_name, 'w', encoding='utf-8') as f:
-                    f.write(self.result_text.toPlainText())
-            except Exception as e:
-                print(f"保存エラー: {str(e)}")
-
-    def set_result(self, text: str):
-        """処理結果を設定"""
-        self.result_text.setText(text)
-
-    def get_prompt(self) -> str:
-        """現在のプロンプトを取得"""
-        return self.prompt_edit.toPlainText()
+        self.process_clicked.emit(prompt_text)
