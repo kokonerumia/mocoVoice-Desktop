@@ -21,10 +21,21 @@ class ResultPanel(QFrame):
         # 上部のボタンエリア
         button_layout = QHBoxLayout()
         
+        left_buttons = QHBoxLayout()
         self.save_button = QPushButton("結果を保存")
         self.save_button.clicked.connect(self.save_current_tab)
-        button_layout.addWidget(self.save_button)
+        left_buttons.addWidget(self.save_button)
+        
+        right_buttons = QHBoxLayout()
+        self.markdown_toggle = QPushButton("プレーンテキスト")
+        self.markdown_toggle.setCheckable(True)
+        self.markdown_toggle.clicked.connect(self.toggle_markdown_view)
+        self.markdown_toggle.setVisible(False)  # 初期状態では非表示
+        right_buttons.addWidget(self.markdown_toggle)
+        
+        button_layout.addLayout(left_buttons)
         button_layout.addStretch()
+        button_layout.addLayout(right_buttons)
         
         main_layout.addLayout(button_layout)
         
@@ -65,9 +76,29 @@ class ResultPanel(QFrame):
 
     def set_ai_result(self, text: str):
         """AI処理結果を設定"""
-        # マークダウンをHTMLに変換
-        html = markdown.markdown(text, extensions=['tables', 'fenced_code'])
+        self.raw_text = text  # 生のテキストを保存
+        self.markdown_toggle.setVisible(True)  # ボタンを表示
+        self.show_markdown_view()  # デフォルトでマークダウン表示
+
+    def show_markdown_view(self):
+        """マークダウン表示に切り替え"""
+        html = markdown.markdown(self.raw_text, extensions=['tables', 'fenced_code'])
         self.ai_result_text.setHtml(html)
+        self.markdown_toggle.setText("プレーンテキスト")
+        self.markdown_toggle.setChecked(False)
+
+    def show_plain_text(self):
+        """プレーンテキスト表示に切り替え"""
+        self.ai_result_text.setPlainText(self.raw_text)
+        self.markdown_toggle.setText("マークダウン")
+        self.markdown_toggle.setChecked(True)
+
+    def toggle_markdown_view(self):
+        """マークダウン表示とプレーンテキスト表示を切り替え"""
+        if self.markdown_toggle.isChecked():
+            self.show_plain_text()
+        else:
+            self.show_markdown_view()
 
     def get_result(self) -> str:
         """文字起こし結果を取得"""
@@ -128,3 +159,4 @@ class ResultPanel(QFrame):
         self.debug_text.clear()
         self.result_text.clear()
         self.ai_result_text.clear()
+        self.markdown_toggle.setVisible(False)

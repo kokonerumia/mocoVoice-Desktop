@@ -1,6 +1,6 @@
-# MocoVoice 文字起こしアプリケーション
+# MocoVoice Desktop
 
-音声ファイルやビデオファイルから文字起こしを行い、その結果をAIで処理できるデスクトップアプリケーションです。
+音声ファイルやビデオファイルから高精度な文字起こしを行い、その結果をAIで柔軟に加工・処理できるデスクトップアプリケーションです。話者の分離や自動句読点挿入、タイムスタンプ付与などの高度な機能を備え、文字起こし結果をAIでさまざまな形式に変換・加工することができます。マークダウン形式での表示にも対応し、見やすく整理された結果を得ることができます。
 
 ## 機能
 
@@ -18,8 +18,8 @@
 
 1. リポジトリをクローン
 ```bash
-git clone https://github.com/yourusername/mocoSucceed.git
-cd mocoSucceed
+git clone https://github.com/kokonerumia/mocoDesktop.git
+cd mocoDesktop
 ```
 
 2. 必要なパッケージをインストール
@@ -63,7 +63,7 @@ python qt_gui.py
 ## プロジェクト構成
 
 ```
-mocoSucceed/
+mocoDesktop/
 ├── gui/                      # GUIモジュール
 │   ├── widgets/             # ウィジェットコンポーネント
 │   │   ├── file_panel.py    # ファイル選択パネル
@@ -91,7 +91,7 @@ mocoSucceed/
 
 ## サポート
 
-不具合や機能要望は[Issues](https://github.com/yourusername/mocoSucceed/issues)にて受け付けています。
+不具合や機能要望は[Issues](https://github.com/kokonerumia/mocoDesktop/issues)にて受け付けています。
 
 ## ドキュメント
 
