@@ -100,7 +100,7 @@ class MocoVoiceClient:
         data = {
             'filename': filename,
             'language': options.get('language', 'ja'),
-            'transcription_model': 'timestamp' if options.get('timestamp') else 'default',
+            'transcription_model': 'default',  # タイムスタンプモデルに問題があるため、一時的にdefaultを使用
             'words': []
         }
 
