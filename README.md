@@ -28,13 +28,14 @@ pip install -r requirements.txt
 ```
 
 3. 設定ファイルの作成
-`config.json`ファイルを作成し、以下の内容を追加:
-```json
-{
-  "mocoVoiceApiKey": "YOUR_MOCO_VOICE_API_KEY",
-  "openaiApiKey": "YOUR_OPENAI_API_KEY"
-}
+`config.json.example`を`config.json`にコピーし、APIキーを設定:
+```bash
+cp config.json.example config.json
 ```
+
+そして`config.json`内のAPIキーを実際の値に置き換えてください:
+- `YOUR_MOCO_VOICE_API_KEY`: MocoVoice APIキー
+- `YOUR_OPENAI_API_KEY`: OpenAI APIキー
 
 ## 使用方法
 
