@@ -1,6 +1,6 @@
 import os
 import json
-import openai
+from openai import OpenAI
 from datetime import datetime
 
 class GPTProcessor:
@@ -9,8 +9,8 @@ class GPTProcessor:
         try:
             with open('config.json', 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                openai.api_key = config.get('openaiApiKey')
-                if not openai.api_key:
+                self.client = OpenAI(api_key=config.get('openaiApiKey'))
+                if not self.client.api_key:
                     raise ValueError('OpenAI APIキーが設定されていません')
         except Exception as e:
             raise Exception(f'設定エラー: {str(e)}')
@@ -39,7 +39,7 @@ class GPTProcessor:
     def process_text(self, text):
         """テキストをChatGPT APIで処理"""
         try:
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},

@@ -257,10 +257,17 @@ class TranscriptionGUI(QMainWindow):
         self.input_path_label = QLabel("ファイルが選択されていません")
         file_layout.addWidget(self.input_path_label)
         
-        browse_button = QPushButton("ファイルを選択")
-        browse_button.clicked.connect(self.browse_input_file)
-        file_layout.addWidget(browse_button)
+        button_layout = QHBoxLayout()
         
+        browse_button = QPushButton("音声ファイルを選択")
+        browse_button.clicked.connect(self.browse_input_file)
+        button_layout.addWidget(browse_button)
+        
+        load_text_button = QPushButton("テキストを読み込む")
+        load_text_button.clicked.connect(self.load_text_file)
+        button_layout.addWidget(load_text_button)
+        
+        file_layout.addLayout(button_layout)
         left_layout.addWidget(file_frame)
         
         # オプション部分
@@ -366,7 +373,13 @@ class TranscriptionGUI(QMainWindow):
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
         self.result_text.setFont(QFont("Helvetica", 11))
-        self.tab_widget.addTab(self.result_text, "結果")
+        self.tab_widget.addTab(self.result_text, "文字起こし結果")
+        
+        # GPT処理結果タブ
+        self.gpt_result_text = QTextEdit()
+        self.gpt_result_text.setReadOnly(True)
+        self.gpt_result_text.setFont(QFont("Helvetica", 11))
+        self.tab_widget.addTab(self.gpt_result_text, "GPT処理結果")
         
         right_layout.addWidget(self.tab_widget)
         
@@ -419,6 +432,7 @@ class TranscriptionGUI(QMainWindow):
         self.setPalette(palette)
         
     def browse_input_file(self):
+        """音声ファイルを選択"""
         extensions = " ".join(f"*{ext}" for ext in MIME_TYPES.keys())
         file_name, _ = QFileDialog.getOpenFileName(
             self,
@@ -428,7 +442,29 @@ class TranscriptionGUI(QMainWindow):
         )
         if file_name:
             self.input_path_label.setText(file_name)
-            self.status_label.setText("ファイルが選択されました")
+            self.status_label.setText("音声ファイルが選択されました")
+            # 結果をクリア
+            self.result_text.clear()
+            self.gpt_result_text.clear()
+
+    def load_text_file(self):
+        """テキストファイルを読み込む"""
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "テキストファイルを選択",
+            "",
+            "テキストファイル (*.txt);;すべてのファイル (*.*)"
+        )
+        if file_name:
+            try:
+                with open(file_name, 'r', encoding='utf-8') as f:
+                    text = f.read()
+                self.result_text.setText(text)
+                self.input_path_label.setText(file_name)
+                self.status_label.setText("テキストファイルを読み込みました")
+                self.tab_widget.setCurrentIndex(1)  # 結果タブに切り替え
+            except Exception as e:
+                self.status_label.setText(f"テキストファイル読み込みエラー: {str(e)}")
             
     def run_transcription(self):
         input_path = self.input_path_label.text()
@@ -540,7 +576,8 @@ class TranscriptionGUI(QMainWindow):
             output_path = self.gpt_processor.save_result(input_path, processed_text)
             
             # 結果を表示
-            self.result_text.setText(processed_text)
+            self.gpt_result_text.setText(processed_text)
+            self.tab_widget.setCurrentIndex(2)  # GPT処理結果タブに切り替え
             self.status_label.setText(f"GPT処理完了: {output_path}")
             
         except Exception as e:
