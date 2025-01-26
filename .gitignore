@@ -40,3 +40,4 @@ config.json
 *.mp4
 *.txt
 !requirements.txt
+mocoVoice.app/

@@ -197,6 +197,17 @@ class ResultPanel(QFrame):
         """指定したタブに切り替え"""
         self.tab_widget.setCurrentIndex(index)
         
+    def clear_all(self):
+        """全ての表示内容をクリア"""
+        self.raw_text = ""
+        self.mode_manager.set_content("")
+        self.analysis_widget.update_analysis("")
+        self.ai_result_text.clear()
+        self.view_mode_button.setVisible(False)
+        self.speaker_button.setVisible(False)
+        self.overwrite_button.setEnabled(False)
+        self.file_manager.current_file = None
+
     def cleanup(self):
         """終了処理"""
         self.mode_manager.cleanup()

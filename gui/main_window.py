@@ -164,9 +164,10 @@ class TranscriptionGUI(QMainWindow):
         # ファイルパネルのシグナル
         self.file_panel.file_selected.connect(lambda _: self.result_panel.clear_all())
         self.file_panel.text_loaded.connect(self.on_text_loaded)
+        self.file_panel.transcription_ready.connect(self.start_transcription)
         
         # コントロールパネルのシグナル
-        self.control_panel.start_clicked.connect(self.run_transcription)
+        self.control_panel.start_clicked.connect(self.prepare_transcription)
         self.control_panel.cancel_clicked.connect(self.cancel_transcription)
         
         # AIパネルのシグナル
@@ -195,8 +196,8 @@ class TranscriptionGUI(QMainWindow):
         except Exception as e:
             self.control_panel.set_status(f'AI設定エラー: {str(e)}')
 
-    def run_transcription(self):
-        """文字起こしを開始"""
+    def prepare_transcription(self):
+        """文字起こしの準備を開始"""
         input_path = self.file_panel.get_input_path()
         
         if input_path == "ファイルが選択されていません":
@@ -211,15 +212,32 @@ class TranscriptionGUI(QMainWindow):
         self.result_panel.clear_all()
         self.log_dialog.clear_log()
         
-        options = self.options_panel.get_options()
+        try:
+            # 音声ファイルの準備を開始
+            self.file_panel.prepare_audio_for_transcription()
+        except Exception as e:
+            self.control_panel.set_status(f"エラー: {str(e)}")
+            self.control_panel.set_running(False)
         
-        self.worker = TranscriptionWorker(self.client, input_path, options)
-        self.worker.status.connect(self.control_panel.set_status)
-        self.worker.debug.connect(self.log_dialog.append_log)
-        self.worker.progress.connect(self.control_panel.set_progress)
-        self.worker.finished.connect(self.on_transcription_complete)
-        self.worker.error.connect(self.on_transcription_error)
-        self.worker.start()
+    def start_transcription(self, audio_path: str):
+        """音声ファイルの準備が完了したら文字起こしを開始"""
+        if not audio_path:
+            self.control_panel.set_status("音声ファイルの準備に失敗しました")
+            self.control_panel.set_running(False)
+            return
+            
+        try:
+            options = self.options_panel.get_options()
+            self.worker = TranscriptionWorker(self.client, audio_path, options)
+            self.worker.status.connect(self.control_panel.set_status)
+            self.worker.debug.connect(self.log_dialog.append_log)
+            self.worker.progress.connect(self.control_panel.set_progress)
+            self.worker.finished.connect(self.on_transcription_complete)
+            self.worker.error.connect(self.on_transcription_error)
+            self.worker.start()
+        except Exception as e:
+            self.control_panel.set_status(f"文字起こしの開始に失敗しました: {str(e)}")
+            self.control_panel.set_running(False)
 
     def cancel_transcription(self):
         """文字起こしを中止"""

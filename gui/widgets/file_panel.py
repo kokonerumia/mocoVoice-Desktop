@@ -7,7 +7,10 @@ import tempfile
 import webbrowser
 import pyaudio
 from datetime import datetime
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
+from PyQt6.QtWidgets import (
+    QFrame, QVBoxLayout, QHBoxLayout, QPushButton, 
+    QLabel, QFileDialog, QProgressBar
+)
 from PyQt6.QtGui import QPixmap, QCursor
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from moco_client import MIME_TYPES
@@ -59,12 +62,17 @@ class FilePanel(QFrame):
     """ファイル選択パネルクラス"""
     file_selected = pyqtSignal(str)  # ファイル選択時のシグナル
     text_loaded = pyqtSignal(tuple)  # テキスト読み込み時のシグナル (text, file_path)
+    transcription_ready = pyqtSignal(str)  # 文字起こし準備完了時のシグナル
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.recorder = None
         self.is_recording = False
         self.temp_dir = tempfile.gettempdir()
+        self.media_converter = MediaConverter()
+        self.media_converter.progress_updated.connect(self.update_progress)
+        self.selected_file = None  # 選択されたファイルのパス
+        self.audio_file = None  # 変換後の音声ファイルのパス
         self.initUI()
 
     def initUI(self):
@@ -97,7 +105,7 @@ class FilePanel(QFrame):
         
         button_layout = QHBoxLayout()
         
-        browse_button = QPushButton("音声ファイルを選択")
+        browse_button = QPushButton("ファイルを選択")
         browse_button.clicked.connect(self.browse_input_file)
         button_layout.addWidget(browse_button)
         
@@ -121,6 +129,14 @@ class FilePanel(QFrame):
         load_text_button.clicked.connect(self.load_text_file)
         button_layout.addWidget(load_text_button)
         
+        # プログレスバーの追加
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)  # 初期状態では非表示
+        self.progress_label = QLabel()
+        self.progress_label.setVisible(False)  # 初期状態では非表示
+        
+        file_layout.addWidget(self.progress_label)
+        file_layout.addWidget(self.progress_bar)
         file_layout.addLayout(button_layout)
         layout.addWidget(file_frame)
 
@@ -143,13 +159,51 @@ class FilePanel(QFrame):
         )
         
         if file_name:
+            # ファイルパスを保持
+            self.selected_file = file_name
+            self.input_path_label.setText(file_name)
+            
+            # 音声ファイルの場合は直接パスを設定
+            _, ext = os.path.splitext(file_name)
+            if ext.lower() in ['.mp3', '.m4a', '.aac', '.wav']:
+                self.audio_file = file_name
+            else:
+                self.audio_file = None  # 動画ファイルの場合はNoneに設定
+
+    def prepare_audio_for_transcription(self):
+        """文字起こしのための音声ファイル準備"""
+        try:
+            if not self.selected_file:
+                raise RuntimeError("ファイルが選択されていません")
+                
+            # 音声ファイルが既に準備されている場合は変換不要
+            if self.audio_file:
+                self.transcription_ready.emit(self.audio_file)
+                return
+                
+            # プログレスバーを表示
+            self.progress_bar.setVisible(True)
+            self.progress_label.setVisible(True)
+            self.progress_bar.setValue(0)
+            
             try:
-                # 動画ファイルの場合は音声を抽出
-                audio_path = MediaConverter.convert_to_audio(file_name)
-                self.input_path_label.setText(audio_path)
-                self.file_selected.emit(audio_path)
+                # 動画ファイルを音声に変換
+                self.audio_file = self.media_converter.convert_to_audio(self.selected_file)
+                self.transcription_ready.emit(self.audio_file)
             except Exception as e:
-                self.text_loaded.emit(f"メディア変換エラー: {str(e)}")
+                error_message = str(e)
+                if "ffmpeg" in error_message.lower():
+                    self.text_loaded.emit((error_message, None))
+                else:
+                    self.text_loaded.emit((f"メディア変換エラー: {error_message}", None))
+                # エラー時はプログレスバーを非表示にし、シグナルを送信しない
+                self.progress_bar.setVisible(False)
+                self.progress_label.setVisible(False)
+                raise  # エラーを上位に伝播
+            
+        except Exception as e:
+            # 上位のエラーハンドリングに任せる
+            raise RuntimeError(str(e))
 
     def load_text_file(self):
         """テキストファイルまたはJSONファイルを読み込む"""
@@ -242,9 +296,21 @@ class FilePanel(QFrame):
     def on_recording_finished(self):
         """録音完了時の処理"""
         if self.recorder:
+            self.selected_file = self.recorder.filename
+            self.audio_file = self.recorder.filename
             self.input_path_label.setText(self.recorder.filename)
             self.file_selected.emit(self.recorder.filename)
             self.recorder = None
+
+    def update_progress(self, message: str, value: int):
+        """進捗状況を更新"""
+        self.progress_label.setText(message)
+        self.progress_bar.setValue(value)
+        
+        # 完了時（100%）またはエラー時にプログレスバーを非表示
+        if value == 100 or value < 0:
+            self.progress_bar.setVisible(False)
+            self.progress_label.setVisible(False)
 
     def get_input_path(self) -> str:
         """入力パスを取得"""
