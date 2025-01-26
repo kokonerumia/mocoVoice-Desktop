@@ -39,11 +39,13 @@ FILE_FILTERS = {
 # タブインデックス
 TAB_INDICES = {
     "result": 0,
-    "ai_result": 1
+    "analysis": 1,
+    "ai_result": 2
 }
 
 # タブタイトル
 TAB_TITLES = {
     "result": "文字起こし結果",
+    "analysis": "会話分析",
     "ai_result": "AI処理結果"
 }

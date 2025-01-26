@@ -5,7 +5,8 @@ import json
 import markdown
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QTabWidget, 
-    QTextEdit, QTextBrowser, QPushButton, QMessageBox
+    QTextEdit, QTextBrowser, QPushButton, QMessageBox,
+    QScrollArea, QLabel, QDialog
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
@@ -13,6 +14,8 @@ from PyQt6.QtCore import Qt
 from .constants import FONT_SETTINGS, TAB_INDICES, TAB_TITLES
 from .transcript_formatter import TranscriptFormatter
 from .file_handler import FileHandler
+from .conversation_analyzer import ConversationAnalysisWidget
+from .speaker_manager import SpeakerManagerDialog
 
 class ResultPanel(QFrame):
     """結果表示パネルクラス"""
@@ -42,6 +45,11 @@ class ResultPanel(QFrame):
         self.overwrite_button.clicked.connect(self.overwrite_current_tab)
         self.overwrite_button.setEnabled(False)  # 初期状態では無効
         left_buttons.addWidget(self.overwrite_button)
+        
+        self.speaker_button = QPushButton("話者の管理")
+        self.speaker_button.clicked.connect(self.manage_speakers)
+        self.speaker_button.setVisible(False)  # 初期状態では非表示
+        left_buttons.addWidget(self.speaker_button)
         
         # 右側のボタン
         right_buttons = QHBoxLayout()
@@ -76,6 +84,13 @@ class ResultPanel(QFrame):
         self.view_mode_button.setVisible(False)
         right_buttons.addWidget(self.view_mode_button)
         
+        # 会話分析タブ
+        self.analysis_scroll = QScrollArea()
+        self.analysis_widget = ConversationAnalysisWidget()
+        self.analysis_scroll.setWidget(self.analysis_widget)
+        self.analysis_scroll.setWidgetResizable(True)
+        self.tab_widget.addTab(self.analysis_scroll, TAB_TITLES["analysis"])
+        
         # AI処理結果タブ
         self.ai_result_text = QTextBrowser()
         self.ai_result_text.setOpenExternalLinks(True)
@@ -101,14 +116,19 @@ class ResultPanel(QFrame):
             # HTML形式で表示
             formatted_text = self.formatter.format_transcript(text)
             self.result_text.setHtml(formatted_text)
-            # 表示モード切り替えボタンを表示
+            # 表示モード切り替えボタンと話者管理ボタンを表示
             self.view_mode_button.setVisible(True)
             self.view_mode_button.setChecked(False)
             self.view_mode_button.setText("編集モード")
+            self.speaker_button.setVisible(True)
+            
+            # 会話分析を更新
+            self.analysis_widget.update_analysis(text)
         except json.JSONDecodeError:
             # JSONでない場合はそのまま表示
             self.result_text.setPlainText(text)
             self.view_mode_button.setVisible(False)
+            self.speaker_button.setVisible(False)
 
     def set_ai_result(self, text: str):
         """AI処理結果を設定"""
@@ -277,5 +297,38 @@ class ResultPanel(QFrame):
         self.ai_result_text.clear()
         self.markdown_toggle.setVisible(False)
         self.view_mode_button.setVisible(False)
+        self.speaker_button.setVisible(False)
         self.current_file = None
         self.overwrite_button.setEnabled(False)
+        
+        # 会話分析をクリア
+        self.analysis_widget.update_analysis("[]")
+        
+    def manage_speakers(self):
+        """話者管理ダイアログを表示"""
+        dialog = SpeakerManagerDialog(self.raw_text, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            modified_json = dialog.get_modified_json()
+            if modified_json != self.raw_text:
+                try:
+                    # JSONを更新
+                    self.raw_text = modified_json
+                    
+                    # 表示を更新
+                    if self.view_mode_button.isChecked():
+                        # 編集モードの場合はプレーンテキストを更新
+                        self.result_text.setPlainText(self.raw_text)
+                    else:
+                        # 表示モードの場合はHTML形式で表示
+                        formatted_text = self.formatter.format_transcript(self.raw_text)
+                        self.result_text.setHtml(formatted_text)
+                    
+                    # 会話分析を更新
+                    self.analysis_widget.update_analysis(self.raw_text)
+                    
+                    # ファイルが開かれている場合は自動で保存
+                    if self.current_file:
+                        with open(self.current_file, 'w', encoding='utf-8') as f:
+                            json.dump(json.loads(self.raw_text), f, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    QMessageBox.warning(self, "エラー", f"話者の変更に失敗しました: {str(e)}")
