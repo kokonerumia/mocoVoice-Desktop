@@ -3,7 +3,7 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QFrame, QVBoxLayout, QPushButton
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QFrame, QVBoxLayout, QPushButton, QMessageBox
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtCore import Qt
 from moco_client import MocoVoiceClient
@@ -15,6 +15,7 @@ from .widgets import (
     AIPanel,
     ResultPanel
 )
+from .widgets.log_dialog import LogDialog
 from .transcription_worker import TranscriptionWorker
 
 class TranscriptionGUI(QMainWindow):
@@ -23,6 +24,7 @@ class TranscriptionGUI(QMainWindow):
         super().__init__()
         self.worker = None
         self.is_dark_mode = True
+        self.log_dialog = LogDialog(self)
         self.initUI()
 
     def initUI(self):
@@ -58,31 +60,53 @@ class TranscriptionGUI(QMainWindow):
         self.result_panel = ResultPanel()
         self.result_panel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         
+        # 左パネル下部のボタンエリア
+        bottom_buttons = QHBoxLayout()
+        
+        # ログ表示ボタン
+        log_button = QPushButton("ログを表示")
+        log_button.setStyleSheet("""
+            QPushButton {
+                background-color: #666666;
+                color: white;
+                border: none;
+                padding: 5px 15px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #888888;
+            }
+        """)
+        log_button.clicked.connect(self.show_log_dialog)
+        bottom_buttons.addWidget(log_button)
+        
         # テーマ切り替えボタン
-        theme_button = QPushButton()
+        theme_button = QPushButton("🌓")
         theme_button.setFixedSize(30, 30)
         theme_button.setStyleSheet("""
             QPushButton {
                 border: none;
                 border-radius: 15px;
-                background-color: #2a82da;
+                background-color: #666666;
                 color: white;
             }
             QPushButton:hover {
-                background-color: #3292ea;
+                background-color: #888888;
+            }
+            QPushButton:focus {
+                outline: none;
+                border: none;
             }
         """)
-        theme_button.setText("🌓")
         theme_button.clicked.connect(self.toggle_theme)
+        bottom_buttons.addWidget(theme_button)
+        
+        # 左パネルにボタンエリアを追加
+        left_layout.addLayout(bottom_buttons)
         
         # レイアウトの追加
         main_layout.addWidget(left_panel, 1)
         main_layout.addWidget(self.result_panel, 2)
-        
-        # テーマボタンを右上に配置
-        theme_button.setParent(main_widget)
-        theme_button.move(main_widget.width() - 40, 10)
-        main_widget.resizeEvent = lambda e: theme_button.move(main_widget.width() - 40, 10)
         
         # スタイル設定
         self.setStyle()
@@ -185,13 +209,13 @@ class TranscriptionGUI(QMainWindow):
             
         self.control_panel.set_running(True)
         self.result_panel.clear_all()
-        self.result_panel.switch_to_tab(0)  # ログタブに切り替え
+        self.log_dialog.clear_log()
         
         options = self.options_panel.get_options()
         
         self.worker = TranscriptionWorker(self.client, input_path, options)
         self.worker.status.connect(self.control_panel.set_status)
-        self.worker.debug.connect(self.result_panel.log_debug)
+        self.worker.debug.connect(self.log_dialog.append_log)
         self.worker.progress.connect(self.control_panel.set_progress)
         self.worker.finished.connect(self.on_transcription_complete)
         self.worker.error.connect(self.on_transcription_error)
@@ -205,7 +229,8 @@ class TranscriptionGUI(QMainWindow):
 
     def on_transcription_complete(self, text: str):
         """文字起こし完了時の処理"""
-        self.result_panel.set_result(text)
+        # 文字起こし結果はJSONファイルとして保存されないため、ファイルパスはNone
+        self.result_panel.set_result(text, None)
         self.result_panel.switch_to_tab(1)  # 結果タブに切り替え
         self.control_panel.set_running(False)
 
@@ -225,14 +250,16 @@ class TranscriptionGUI(QMainWindow):
 2. ネットワーク接続を確認してください
 3. 問題が続く場合は、サポートにお問い合わせください
 """
-        self.result_panel.log_debug(error_guidance.format(error_message=error_message))
+        self.log_dialog.append_log(error_guidance.format(error_message=error_message))
         self.control_panel.set_status("エラーが発生しました。詳細はログを確認してください。")
+        self.show_log_dialog()  # エラー時は自動的にログを表示
         self.control_panel.set_running(False)
 
-    def on_text_loaded(self, text: str):
+    def on_text_loaded(self, data: tuple):
         """テキスト読み込み時の処理"""
-        self.result_panel.set_result(text)
-        self.result_panel.switch_to_tab(1)  # 結果タブに切り替え
+        text, file_path = data
+        self.result_panel.set_result(text, file_path)
+        self.result_panel.switch_to_tab(0)  # 結果タブに切り替え
         self.control_panel.set_status("テキストファイルを読み込みました")
 
     def process_with_ai(self, prompt: str):
@@ -258,8 +285,15 @@ class TranscriptionGUI(QMainWindow):
             
             # 結果を表示
             self.result_panel.set_ai_result(processed_text)
-            self.result_panel.switch_to_tab(2)  # AI処理結果タブに切り替え
+            self.result_panel.switch_to_tab(1)  # AI処理結果タブに切り替え
             self.control_panel.set_status("AI処理完了")
             
         except Exception as e:
-            self.control_panel.set_status(f"AI処理エラー: {str(e)}")
+            error_message = f"AI処理エラー: {str(e)}"
+            self.control_panel.set_status(error_message)
+            self.log_dialog.append_log(error_message)
+            self.show_log_dialog()
+
+    def show_log_dialog(self):
+        """ログダイアログを表示"""
+        self.log_dialog.exec()

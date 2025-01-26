@@ -58,7 +58,7 @@ class FilePanel(QFrame):
     recording_stopped = pyqtSignal()  # 録音停止時のシグナル
     """ファイル選択パネルクラス"""
     file_selected = pyqtSignal(str)  # ファイル選択時のシグナル
-    text_loaded = pyqtSignal(str)    # テキスト読み込み時のシグナル
+    text_loaded = pyqtSignal(tuple)  # テキスト読み込み時のシグナル (text, file_path)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -152,21 +152,46 @@ class FilePanel(QFrame):
                 self.text_loaded.emit(f"メディア変換エラー: {str(e)}")
 
     def load_text_file(self):
-        """テキストファイルを読み込む"""
+        """テキストファイルまたはJSONファイルを読み込む"""
         file_name, _ = QFileDialog.getOpenFileName(
             self,
             "テキストファイルを選択",
             "",
-            "テキストファイル (*.txt);;すべてのファイル (*.*)"
+            "文字起こし結果 (*.json);;テキストファイル (*.txt);;すべてのファイル (*.*)"
         )
         if file_name:
             try:
                 with open(file_name, 'r', encoding='utf-8') as f:
                     text = f.read()
                 self.input_path_label.setText(file_name)
-                self.text_loaded.emit(text)
+                
+                # ファイルの拡張子を確認
+                if file_name.lower().endswith('.json'):
+                    # JSONファイルの場合は文字起こし結果として処理
+                    from .result.transcript_formatter import TranscriptFormatter
+                    formatter = TranscriptFormatter()
+                    
+                    # JSONの形式を検証
+                    if formatter.validate_transcript_json(text):
+                        self.text_loaded.emit((text, file_name))  # タプルとして送信
+                    else:
+                        self.text_loaded.emit(("エラー: 無効なJSONファイルです。文字起こし結果のJSONファイルを選択してください。\n\n" + 
+                                           "JSONファイルは以下の形式である必要があります:\n" +
+                                           "[\n" +
+                                           "  {\n" +
+                                           '    "start": 0.0,\n' +
+                                           '    "end": 1.0,\n' +
+                                           '    "text": "発話内容",\n' +
+                                           '    "speaker": "SPEAKER_01"\n' +
+                                           "  },\n" +
+                                           "  ...\n" +
+                                           "]", None))  # エラーの場合はファイルパスをNoneに
+                else:
+                    # 通常のテキストファイルとして処理
+                    self.text_loaded.emit((text, None))  # テキストファイルの場合はファイルパスをNoneに
+                    
             except Exception as e:
-                self.text_loaded.emit(f"テキストファイル読み込みエラー: {str(e)}")
+                self.text_loaded.emit(f"ファイル読み込みエラー: {str(e)}")
 
     def toggle_recording(self):
         """録音の開始/停止を切り替え"""
