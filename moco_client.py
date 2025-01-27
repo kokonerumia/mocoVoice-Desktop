@@ -21,9 +21,10 @@ class MocoVoiceClient:
 
     def __init__(self, api_key: str):
         self.api_key = api_key
+        # ★ ここのベースURLを修正： /api/v1 を含める
         self.base_url = 'https://api.mocomoco.ai/api/v1'
         self.headers = {
-            'accept': 'application/json',
+            'accept': 'application/json',  # 小文字でもOK
             'X-API-KEY': api_key,
             'Content-Type': 'application/json'
         }
@@ -39,7 +40,7 @@ class MocoVoiceClient:
             try:
                 response = requests.request(method, url, timeout=30, **kwargs)
                 
-                # サーバーエラーの場合はリトライ
+                # サーバーエラー (5xx) の場合はリトライ
                 if response.status_code >= 500:
                     error_msg = f"サーバーエラー (ステータスコード: {response.status_code})"
                     if attempt < self.MAX_RETRIES - 1:
@@ -95,19 +96,17 @@ class MocoVoiceClient:
 
     def create_transcription_job(self, filename: str, options: Optional[Dict] = None) -> Dict:
         """文字起こしジョブを作成"""
+        # /api/v1/transcriptions/upload に変更
         url = f'{self.base_url}/transcriptions/upload'
         
+        # optionsがNoneの場合に備えて初期化
+        if options is None:
+            options = {}
+
         data = {
             'filename': filename,
-            'language': options.get('language', 'ja'),
-            'transcription_model': 'default',  # タイムスタンプモデルに問題があるため、一時的にdefaultを使用
-            'words': []
+            'language': options.get('language', 'ja')
         }
-
-        if options.get('speaker_diarization'):
-            data['words'].append({'word': '[SPEAKER_DIARIZATION]', 'reading': 'ON'})
-        if options.get('punctuation'):
-            data['words'].append({'word': '[AUTO_PUNCTUATION]', 'reading': 'ON'})
 
         response = self._make_request('POST', url, headers=self.headers, json=data)
         return response.json()
@@ -123,11 +122,12 @@ class MocoVoiceClient:
 
     def start_transcription(self, transcription_id: str) -> Dict:
         """文字起こしを開始"""
+        # /api/v1/transcriptions/<id>/transcribe に変更
         url = f'{self.base_url}/transcriptions/{transcription_id}/transcribe'
         try:
-            response = requests.post(url, headers=self.headers, timeout=30)
+            # 空データを送るなら json={} または data=json.dumps({})
+            response = requests.post(url, headers=self.headers, json={}, timeout=30)
             
-            # レスポンスの詳細をログ出力
             print(f"Start transcription response: Status={response.status_code}")
             if response.status_code != 200:
                 print(f"Response content: {response.text}")
@@ -141,11 +141,13 @@ class MocoVoiceClient:
 
     def get_transcription_status(self, transcription_id: str) -> Dict:
         """文字起こしの状態を取得"""
+        # /api/v1/transcriptions/<id>
         url = f'{self.base_url}/transcriptions/{transcription_id}'
         response = self._make_request('GET', url, headers=self.headers)
         return response.json()
 
     def get_transcription_result(self, transcription_path: str) -> str:
         """文字起こし結果を取得"""
+        # transcription_path そのものがURLとして返ってくるならそのまま利用
         response = self._make_request('GET', transcription_path)
         return response.text

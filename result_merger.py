@@ -19,8 +19,8 @@ class TranscriptionMerger:
                             text = f"{entry['speaker']}: {text}"
                         merged_texts.append(text)
                 else:
-                    # プレーンテキストとして扱う
-                    merged_texts.append(result)
+                    # JSONパースエラーの場合、空の文字列を追加
+                    merged_texts.append("")
             except json.JSONDecodeError:
                 # JSONでない場合はプレーンテキストとして扱う
                 merged_texts.append(result)
